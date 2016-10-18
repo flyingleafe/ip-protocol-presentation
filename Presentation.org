@@ -1,0 +1,252 @@
+#+REVEAL_ROOT: http://cdn.jsdelivr.net/reveal.js/3.0.0/
+#+REVEAL_THEME: simple
+#+REVEAL_TRANS: slide
+#+REVEAL_HLEVEL: 2
+#+REVEAL_MARGIN: 0.1
+#+REVEAL_MIN_SCALE: 0.5
+#+OPTIONS: num:nil
+#+OPTIONS: text-align:left
+#+OPTIONS: toc:1
+#+TITLE: IP protocol
+#+AUTHOR: Dmitry Mukhutdinov
+
+* Network layer overview
+** What is network layer?
+   Network layer is responsible for efficient data delivery from point A to point
+   B.
+
+   #+ATTR_REVEAL: :frag (appear)
+   * It does:
+     * Packet forwarding
+     * Routing
+     * Quality of Service
+   * It doesn't:
+     * Network-local addressing
+     * Flow control
+
+   #+ATTR_REVEAL: :frag (appear)
+   The unit of information in network layer is called a *packet*
+** Properties of network layer
+   #+ATTR_REVEAL: :frag (appear)
+   * Shouldn't depend on underlying *datalink layer*
+     * (there's much of them: MAC, PPP, etc.)
+   * Each network layer entity is uniquely identified by *network layer address*
+     * (this is actually circumvented by networks under NAT, more on that later)
+   * There's two planes of network layer:
+     * *Control plane* is about knowing how to transfer packets in the best
+       possible way
+     * *Data plane* is about actually transferring packets
+** Data plane organization
+*** Datagram transmission
+    #+ATTR_HTML: :align center
+    [[file:./datagram_transmission.png]]
+
+    * Hop-by-hop tramsmission (like postal service)
+    * Connectionless
+    * Uses only routing tables
+    * A packet contains source and destination addresses
+
+    #+REVEAL: split
+
+    Pros:
+    + Easy to implement
+    + Send any packet at any time without much fuss
+
+    Cons:
+    - Some packets can get lost or arrive not in order
+
+*** Virtual circuits
+    #+ATTR_HTML: :align center
+    [[file:./virtual_circuit_transmission.png]]
+
+
+    * Connection-oriented - establishes a circuit before sending actual data
+    * A packet contains virtual circuit label
+    * Routers maintain additional *label forwarding tables*
+
+    #+REVEAL: split
+
+    Pros:
+    + Reliable, and may use the network in a more efficient way
+
+    Cons:
+    - Nobody cares about that when you have TCP/IP
+** Brief overview of control plane
+   There's several ways of maintaining routing tables inside the network.
+
+*** Static routing
+    Tables are pre-computed and fixed manually
+*** Distance vector routing
+     * For each destination address, router stores:
+       * an outgoing data link
+       * distance to destination
+       * timestamp
+     * Routers regurarly exchange their distance vectors and update tables accordingly
+*** Link state routing
+     * Network is modelled as directed weighted graph
+     * Routing table is actually an adjacency list
+     * Routers ping themselves regularly and broadcast lists of its adjacent
+       neighbours
+     * Routing is done using Dijkstra's algorithm
+* IPv4
+** General properties
+   IPv4 is network layer protocol with the following properties:
+
+   * It provides unreliable connectionless service
+   * Operates with datagram transmission mode (hop-to-hop forwarding)
+   * 32-bit addresses
+   * Packets of variable length
+
+   IP adresses are commonly represented in *dotted-decimal* format.
+   * 1.2.3.4 = 00000001000000100000001100000100
+** Address allocation problem
+   No one of original developers of IPv4 ever imagined it would be used so
+   widely, so no one thought about proper address allocation inb4.
+
+   #+ATTR_REVEAL: :frag (appear)
+   *Problem 1*: routers cannot fit too much adresses in routing tables
+
+   #+ATTR_REVEAL: :frag (appear)
+   *Problem 2*: actually, 32 bits is not enough for a global Internet
+*** Problem 1 solution: RFC 791, 1981
+    Separate IP address into two parts: subnetwork id and host id.
+    #+ATTR_HTML: :align center :style border: none; box-shadow: none
+    [[file:./subnetwork.png]]
+
+    Make 3 classes of subnetworks, and give out subnetworks ID's on
+    /first-come-first-served/ basis:
+
+    #+ATTR_HTML: :style font-size: 0.6em
+    | Class   | High-order bits | Length of subnet id | Number of networks | Addresses per network   |
+    |---------+-----------------+---------------------+--------------------+-------------------------|
+    | Class A |               0 | 8 bits              | 128                | 16,777,216 (${2^{24}}$) |
+    | Class B |              10 | 16 bits             | 16,384             | 65,536 (${2^{16}}$)     |
+    | Class C |             110 | 24 bits             | 2,097,152          | 256 (${2^8}$)           |
+
+*** Problems with classes
+    * Most organizations considered Class A subnetworks too large, and Class C
+      networks too small, therefore most of the subnets was Class B
+    * Amount of Class B networks quickly grew, and soon came close to its upper limit
+    * Top-level routers began to feel bad about that many subnetworks
+
+    #+REVEAL: split
+
+    #+CAPTION: Evolution of the size of the routing tables on the Internet (Jul 1988- Dec 1992)
+    #+ATTR_HTML: :align center
+    [[file:./ipv4_grow.png]]
+*** A better solution: RFC 1519, 1993
+    * Variable-length subnetwork IDs
+    * Allocate addresses to organizations hierarhically
+      * Huge subnets are managed by Regional IP Registries (RIR), which allocate
+        smaller subnets to Internet Service Providers (ISP), which provide
+        subnets to organizations and individuals.
+    * Use longest-common-prefix match of IP address while consulting routing table.
+
+    A subnet ID is represented in the form *A.B.C.D/p*, where *A.B.C.D* is the smallest
+    address in subnet and *p* is size of subnet ID in bits.
+*** Problem 2 solution: NAT
+    #+ATTR_REVEAL: :frag (appear)
+    * Let's hide several devices behind one public IP
+    * Router substitutes source IP in each packet with public IP
+    * When response comes in, private IP is determined by transport layer port
+    * Reserved ranges for private IPs: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+
+** Packet structure
+   #+ATTR_HTML: :align center
+   [[file:./Ipv4_packet_header.jpg]]
+*** Main packet fields
+    - *Version*
+    - *IHL* - IP header length in bytes - to make use of options possible
+    - *Type of Service* - for QoS, more on that later
+    - *Total packet length*
+    - *Protocol* - underlying transport protocol ID
+    - *Header checksum*
+    - *Source address* and *destination address*
+*** TTL
+    #+ATTR_REVEAL: :frag (appear)
+    * A packet may occasionally get caught in a loop
+    * Loops can appear due to misconfiguration or during routing tables
+      convergence after some failure
+    * *TTL* field specifies maximum number of hops the packet can perform
+    * Each router on a path decrements TTL of packet, packet is discarded when
+      TTL comes to zero.
+*** Packet fragmentation and reassembling
+    #+ATTR_REVEAL: :frag (appear)
+    * Problem: datalink layer interfaces have small and different frame sizes
+      (or Maximum Transmission Unit - MTU)
+    * How do we send large IP packets over such interfaces?
+    * Fragment them down to MTU size and provide extra fields to allow reassembling
+
+    #+REVEAL: split
+    Fragmentation fields:
+    * *Identification* - An ID of large packet
+    * *Fragment offset* - Offset from beginning of original packet
+    * *DF* - Don't Fragment flag
+    * *MF* - More Fragments flag (set for first fragment to distinguish it from
+      small normal packet)
+*** Type of service
+    Set of flags which determine prioritizing rules for routers
+    * First 3 bits is precedence - never used
+    * Next 4 bits are TOS bits, which are actually used by somebody
+    * Last bit is defined as /Must Be Zero/ ))
+
+    #+REVEAL: split
+
+    | TOS Bits | Description          |
+    |----------+----------------------|
+    |     0000 | Normal (default)     |
+    |     0001 | Minimize cost        |
+    |     0010 | Maximize reliability |
+    |     0100 | Maximize throughput  |
+    |     1000 | Minimize delay       |
+** ICMP
+   #+ATTR_HTML: :align center
+   [[file:./icmp_packet.png]]
+
+   #+ATTR_REVEAL: :frag (appear)
+   * Special format of messages used to inform sender about some error
+   * Contains of message type, message code and some additional data (usually
+     header of original failed package)
+*** Examples of error types
+    * *Destination unreachable* - no route to destination for some reason
+    * *Fragmentation needed* - packet had DF flag set to 1, but couldn't be
+      transferred without fragmentation
+    * *Time exceeded* - packet has been discarded by TTL or reassembly timeout
+    * *Echo request* and *Echo reply* - /ping/ and /pong/
+** ARP
+   #+ATTR_REVEAL: :frag (appear)
+   * The task: send IP packet to somebody inside LAN
+   * Need to map IP to MAC addresses somehow
+   * *ARP* is a simple protocol used for that task
+   * ARP request containing destination IP is broadcasted over network
+   * Only host which has the given IP answers, and first host uses its MAC to
+     send packets for its IP.
+
+   #+ATTR_REVEAL: :frag (appear)
+   IP to MAC mapping is usually stored locally in ARP cache, which is updated regurarly.
+** DHCP
+   Allows assign IPs for new devices in local network automatically.
+
+   #+ATTR_REVEAL: :frag (appear)
+   1) Newly connected client sends a special UDP packet with source IP 0.0.0.0 and
+      destination IP 255.255.255.255
+   2) The router captures the request, chooses a free IP from its pool, and
+      sends a reply containing this address, with destination IP 255.255.255.255
+   3) Client accepts that IP as its own
+   4) In order to prevent exhausting of address pool, each allocated address has
+      a finite lifetime
+** Routing algorithms
+   There are two types of routing algorithms used with IP protocol:
+
+   #+ATTR_REVEAL: :frag (appear)
+   1) *Interior gateway protocols (IGP)* - algorithms which operate inside one domain
+   2) *Exterior gateway protocola (EGP)* - algorithms which manage routing
+      between domains.
+
+   #+ATTR_REVEAL: :frag (appear)
+   Why they are different?
+
+   #+ATTR_REVEAL: :frag (appear)
+   *IGP* routing policy is based on means of /efficiency/, while *EGP* policy is
+    based on /economical reasons/.
+** TODO IP multicast

@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>IP protocol</title>
+<meta name="author" content="(Dmitry Mukhutdinov)"/>
+<style type="text/css">
+.underline { text-decoration: underline; }
+</style>
+<link rel="stylesheet" href="http://cdn.jsdelivr.net/reveal.js/3.0.0/css/reveal.css"/>
+
+<link rel="stylesheet" href="http://cdn.jsdelivr.net/reveal.js/3.0.0/css/theme/simple.css" id="theme"/>
+
+
+<!-- If the query includes 'print-pdf', include the PDF print sheet -->
+<script>
+    if( window.location.search.match( /print-pdf/gi ) ) {
+        var link = document.createElement( 'link' );
+        link.rel = 'stylesheet';
+        link.type = 'text/css';
+        link.href = 'http://cdn.jsdelivr.net/reveal.js/3.0.0/css/print/pdf.css';
+        document.getElementsByTagName( 'head' )[0].appendChild( link );
+    }
+</script>
+<script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+<section id="sec-title-slide"><h1 class="title">IP protocol</h1><h2 class="author">Dmitry Mukhutdinov</h2><p class="date">Created: 2016-10-18 Tue 12:18</p>
+</section>
+<section id="table-of-contents">
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#/slide-orgheadline10">Network layer overview</a></li>
+<li><a href="#/slide-orgheadline28">IPv4</a></li>
+</ul>
+</div>
+</div>
+</section>
+
+<section>
+<section id="slide-orgheadline10">
+<h2 id="orgheadline10">Network layer overview</h2>
+<div class="outline-text-2" id="text-orgheadline10">
+</div></section>
+</section>
+<section>
+<section id="slide-orgheadline1">
+<h3 id="orgheadline1">What is network layer?</h3>
+<p>
+Network layer is responsible for efficient data delivery from point A to point
+B.
+</p>
+
+<ul>
+<li class="fragment appear">It does:
+<ul>
+<li>Packet forwarding</li>
+<li>Routing</li>
+<li>Quality of Service</li>
+
+</ul></li>
+<li class="fragment appear">It doesn't:
+<ul>
+<li>Network-local addressing</li>
+<li>Flow control</li>
+
+</ul></li>
+
+</ul>
+
+<p class="fragment (appear)">
+The unit of information in network layer is called a <b>packet</b>
+</p>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline2">
+<h3 id="orgheadline2">Properties of network layer</h3>
+<ul>
+<li class="fragment appear">Shouldn't depend on underlying <b>datalink layer</b>
+<ul>
+<li>(there's much of them: MAC, PPP, etc.)</li>
+
+</ul></li>
+<li class="fragment appear">Each network layer entity is uniquely identified by <b>network layer address</b>
+<ul>
+<li>(this is actually circumvented by networks under NAT, more on that later)</li>
+
+</ul></li>
+<li class="fragment appear">There's two planes of network layer:
+<ul>
+<li><b>Control plane</b> is about knowing how to transfer packets in the best
+possible way</li>
+<li><b>Data plane</b> is about actually transferring packets</li>
+
+</ul></li>
+
+</ul>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline5">
+<h3 id="orgheadline5">Data plane organization</h3>
+<div class="outline-text-3" id="text-orgheadline5">
+</div></section>
+<section id="slide-orgheadline3">
+<h4 id="orgheadline3">Datagram transmission</h4>
+
+<div class="figure">
+<p><img src="./datagram_transmission.png" alt="datagram_transmission.png" align="center" />
+</p>
+</div>
+
+<ul>
+<li>Hop-by-hop tramsmission (like postal service)</li>
+<li>Connectionless</li>
+<li>Uses only routing tables</li>
+<li>A packet contains source and destination addresses</li>
+
+</ul>
+
+</section>
+<section>
+
+<p>
+Pros:
+</p>
+<ul>
+<li>Easy to implement</li>
+<li>Send any packet at any time without much fuss</li>
+
+</ul>
+
+<p>
+Cons:
+</p>
+<ul>
+<li>Some packets can get lost or arrive not in order</li>
+
+</ul>
+
+</section>
+<section id="slide-orgheadline4">
+<h4 id="orgheadline4">Virtual circuits</h4>
+
+<div class="figure">
+<p><img src="./virtual_circuit_transmission.png" alt="virtual_circuit_transmission.png" align="center" />
+</p>
+</div>
+
+
+<ul>
+<li>Connection-oriented - establishes a circuit before sending actual data</li>
+<li>A packet contains virtual circuit label</li>
+<li>Routers maintain additional <b>label forwarding tables</b></li>
+
+</ul>
+
+</section>
+<section>
+
+<p>
+Pros:
+</p>
+<ul>
+<li>Reliable, and may use the network in a more efficient way</li>
+
+</ul>
+
+<p>
+Cons:
+</p>
+<ul>
+<li>Nobody cares about that when you have TCP/IP</li>
+
+</ul>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline9">
+<h3 id="orgheadline9">Brief overview of control plane</h3>
+<p>
+There's several ways of maintaining routing tables inside the network.
+</p>
+
+</section>
+<section id="slide-orgheadline6">
+<h4 id="orgheadline6">Static routing</h4>
+<p>
+Tables are pre-computed and fixed manually
+</p>
+</section>
+<section id="slide-orgheadline7">
+<h4 id="orgheadline7">Distance vector routing</h4>
+<ul>
+<li>For each destination address, router stores:
+<ul>
+<li>an outgoing data link</li>
+<li>distance to destination</li>
+<li>timestamp</li>
+
+</ul></li>
+<li>Routers regurarly exchange their distance vectors and update tables accordingly</li>
+
+</ul>
+</section>
+<section id="slide-orgheadline8">
+<h4 id="orgheadline8">Link state routing</h4>
+<ul>
+<li>Network is modelled as directed weighted graph</li>
+<li>Routing table is actually an adjacency list</li>
+<li>Routers ping themselves regularly and broadcast lists of its adjacent
+neighbours</li>
+<li>Routing is done using Dijkstra's algorithm</li>
+
+</ul>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline28">
+<h2 id="orgheadline28">IPv4</h2>
+<div class="outline-text-2" id="text-orgheadline28">
+</div></section>
+</section>
+<section>
+<section id="slide-orgheadline11">
+<h3 id="orgheadline11">General properties</h3>
+<p>
+IPv4 is network layer protocol with the following properties:
+</p>
+
+<ul>
+<li>It provides unreliable connectionless service</li>
+<li>Operates with datagram transmission mode (hop-to-hop forwarding)</li>
+<li>32-bit addresses</li>
+<li>Packets of variable length</li>
+
+</ul>
+
+<p>
+IP adresses are commonly represented in <b>dotted-decimal</b> format.
+</p>
+<ul>
+<li>1.2.3.4 = 00000001000000100000001100000100</li>
+
+</ul>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline16">
+<h3 id="orgheadline16">Address allocation problem</h3>
+<p>
+No one of original developers of IPv4 ever imagined it would be used so
+widely, so no one thought about proper address allocation inb4.
+</p>
+
+<p class="fragment (appear)">
+<b>Problem 1</b>: routers cannot fit too much adresses in routing tables
+</p>
+
+<p class="fragment (appear)">
+<b>Problem 2</b>: actually, 32 bits is not enough for a global Internet
+</p>
+</section>
+<section id="slide-orgheadline12">
+<h4 id="orgheadline12">Problem 1 solution: RFC 791, 1981</h4>
+<p>
+Separate IP address into two parts: subnetwork id and host id.
+</p>
+
+<div class="figure">
+<p><img src="./subnetwork.png" alt="subnetwork.png" align="center" style="border: none; box-shadow: none" />
+</p>
+</div>
+
+<p>
+Make 3 classes of subnetworks, and give out subnetworks ID's on
+<i>first-come-first-served</i> basis:
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides" style="font-size: 0.6em">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-right" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Class</th>
+<th scope="col" class="org-right">High-order bits</th>
+<th scope="col" class="org-left">Length of subnet id</th>
+<th scope="col" class="org-left">Number of networks</th>
+<th scope="col" class="org-left">Addresses per network</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">Class A</td>
+<td class="org-right">0</td>
+<td class="org-left">8 bits</td>
+<td class="org-left">128</td>
+<td class="org-left">16,777,216 (\({2^{24}}\))</td>
+</tr>
+
+<tr>
+<td class="org-left">Class B</td>
+<td class="org-right">10</td>
+<td class="org-left">16 bits</td>
+<td class="org-left">16,384</td>
+<td class="org-left">65,536 (\({2^{16}}\))</td>
+</tr>
+
+<tr>
+<td class="org-left">Class C</td>
+<td class="org-right">110</td>
+<td class="org-left">24 bits</td>
+<td class="org-left">2,097,152</td>
+<td class="org-left">256 (\({2^8}\))</td>
+</tr>
+</tbody>
+</table>
+
+</section>
+<section id="slide-orgheadline13">
+<h4 id="orgheadline13">Problems with classes</h4>
+<ul>
+<li>Most organizations considered Class A subnetworks too large, and Class C
+networks too small, therefore most of the subnets was Class B</li>
+<li>Amount of Class B networks quickly grew, and soon came close to its upper limit</li>
+<li>Top-level routers began to feel bad about that many subnetworks</li>
+
+</ul>
+
+</section>
+<section>
+
+
+<div class="figure">
+<p><img src="./ipv4_grow.png" alt="ipv4_grow.png" align="center" />
+</p>
+<p><span class="figure-number">Figure 4:</span> Evolution of the size of the routing tables on the Internet (Jul 1988- Dec 1992)</p>
+</div>
+</section>
+<section id="slide-orgheadline14">
+<h4 id="orgheadline14">A better solution: RFC 1519, 1993</h4>
+<ul>
+<li>Variable-length subnetwork IDs</li>
+<li>Allocate addresses to organizations hierarhically
+<ul>
+<li>Huge subnets are managed by Regional IP Registries (RIR), which allocate
+smaller subnets to Internet Service Providers (ISP), which provide
+subnets to organizations and individuals.</li>
+
+</ul></li>
+<li>Use longest-common-prefix match of IP address while consulting routing table.</li>
+
+</ul>
+
+<p>
+A subnet ID is represented in the form <b>A.B.C.D/p</b>, where <b>A.B.C.D</b> is the smallest
+address in subnet and <b>p</b> is size of subnet ID in bits.
+</p>
+</section>
+<section id="slide-orgheadline15">
+<h4 id="orgheadline15">Problem 2 solution: NAT</h4>
+<ul>
+<li class="fragment appear">Let's hide several devices behind one public IP</li>
+<li class="fragment appear">Router substitutes source IP in each packet with public IP</li>
+<li class="fragment appear">When response comes in, private IP is determined by transport layer port</li>
+<li class="fragment appear">Reserved ranges for private IPs: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16</li>
+
+</ul>
+
+</section>
+</section>
+<section>
+<section id="slide-orgheadline21">
+<h3 id="orgheadline21">Packet structure</h3>
+
+<div class="figure">
+<p><img src="./Ipv4_packet_header.jpg" alt="Ipv4_packet_header.jpg" align="center" />
+</p>
+</div>
+</section>
+<section id="slide-orgheadline17">
+<h4 id="orgheadline17">Main packet fields</h4>
+<ul>
+<li><b>Version</b></li>
+<li><b>IHL</b> - IP header length in bytes - to make use of options possible</li>
+<li><b>Type of Service</b> - for QoS, more on that later</li>
+<li><b>Total packet length</b></li>
+<li><b>Protocol</b> - underlying transport protocol ID</li>
+<li><b>Header checksum</b></li>
+<li><b>Source address</b> and <b>destination address</b></li>
+
+</ul>
+</section>
+<section id="slide-orgheadline18">
+<h4 id="orgheadline18">TTL</h4>
+<ul>
+<li class="fragment appear">A packet may occasionally get caught in a loop</li>
+<li class="fragment appear">Loops can appear due to misconfiguration or during routing tables
+convergence after some failure</li>
+<li class="fragment appear"><b>TTL</b> field specifies maximum number of hops the packet can perform</li>
+<li class="fragment appear">Each router on a path decrements TTL of packet, packet is discarded when
+TTL comes to zero.</li>
+
+</ul>
+</section>
+<section id="slide-orgheadline19">
+<h4 id="orgheadline19">Packet fragmentation and reassembling</h4>
+<ul>
+<li class="fragment appear">Problem: datalink layer interfaces have small and different frame sizes
+(or Maximum Transmission Unit - MTU)</li>
+<li class="fragment appear">How do we send large IP packets over such interfaces?</li>
+<li class="fragment appear">Fragment them down to MTU size and provide extra fields to allow reassembling</li>
+
+</ul>
+
+</section>
+<section>
+<p>
+Fragmentation fields:
+</p>
+<ul>
+<li><b>Identification</b> - An ID of large packet</li>
+<li><b>Fragment offset</b> - Offset from beginning of original packet</li>
+<li><b>DF</b> - Don't Fragment flag</li>
+<li><b>MF</b> - More Fragments flag (set for first fragment to distinguish it from
+small normal packet)</li>
+
+</ul>
+</section>
+<section id="slide-orgheadline20">
+<h4 id="orgheadline20">Type of service</h4>
+<p>
+Set of flags which determine prioritizing rules for routers
+</p>
+<ul>
+<li>First 3 bits is precedence - never used</li>
+<li>Next 4 bits are TOS bits, which are actually used by somebody</li>
+<li>Last bit is defined as <i>Must Be Zero</i> ))</li>
+
+</ul>
+
+</section>
+<section>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-right" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-right">TOS Bits</th>
+<th scope="col" class="org-left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-right">0000</td>
+<td class="org-left">Normal (default)</td>
+</tr>
+
+<tr>
+<td class="org-right">0001</td>
+<td class="org-left">Minimize cost</td>
+</tr>
+
+<tr>
+<td class="org-right">0010</td>
+<td class="org-left">Maximize reliability</td>
+</tr>
+
+<tr>
+<td class="org-right">0100</td>
+<td class="org-left">Maximize throughput</td>
+</tr>
+
+<tr>
+<td class="org-right">1000</td>
+<td class="org-left">Minimize delay</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline23">
+<h3 id="orgheadline23">ICMP</h3>
+
+<div class="figure">
+<p><img src="./icmp_packet.png" alt="icmp_packet.png" align="center" />
+</p>
+</div>
+
+<ul>
+<li class="fragment appear">Special format of messages used to inform sender about some error</li>
+<li class="fragment appear">Contains of message type, message code and some additional data (usually
+header of original failed package)</li>
+
+</ul>
+</section>
+<section id="slide-orgheadline22">
+<h4 id="orgheadline22">Examples of error types</h4>
+<ul>
+<li><b>Destination unreachable</b> - no route to destination for some reason</li>
+<li><b>Fragmentation needed</b> - packet had DF flag set to 1, but couldn't be
+transferred without fragmentation</li>
+<li><b>Time exceeded</b> - packet has been discarded by TTL or reassembly timeout</li>
+<li><b>Echo request</b> and <b>Echo reply</b> - <i>ping</i> and <i>pong</i></li>
+
+</ul>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline24">
+<h3 id="orgheadline24">ARP</h3>
+<ul>
+<li class="fragment appear">The task: send IP packet to somebody inside LAN</li>
+<li class="fragment appear">Need to map IP to MAC addresses somehow</li>
+<li class="fragment appear"><b>ARP</b> is a simple protocol used for that task</li>
+<li class="fragment appear">ARP request containing destination IP is broadcasted over network</li>
+<li class="fragment appear">Only host which has the given IP answers, and first host uses its MAC to
+send packets for its IP.</li>
+
+</ul>
+
+<p class="fragment (appear)">
+IP to MAC mapping is usually stored locally in ARP cache, which is updated regurarly.
+</p>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline25">
+<h3 id="orgheadline25">DHCP</h3>
+<p>
+Allows assign IPs for new devices in local network automatically.
+</p>
+
+<ol>
+<li class="fragment appear">Newly connected client sends a special UDP packet with source IP 0.0.0.0 and
+destination IP 255.255.255.255</li>
+<li class="fragment appear">The router captures the request, chooses a free IP from its pool, and
+sends a reply containing this address, with destination IP 255.255.255.255</li>
+<li class="fragment appear">Client accepts that IP as its own</li>
+<li class="fragment appear">In order to prevent exhausting of address pool, each allocated address has
+a finite lifetime</li>
+
+</ol>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline26">
+<h3 id="orgheadline26">Routing algorithms</h3>
+<p>
+There are two types of routing algorithms used with IP protocol:
+</p>
+
+<ol>
+<li class="fragment appear"><b>Interior gateway protocols (IGP)</b> - algorithms which operate inside one domain</li>
+<li class="fragment appear"><b>Exterior gateway protocola (EGP)</b> - algorithms which manage routing
+between domains.</li>
+
+</ol>
+
+<p class="fragment (appear)">
+Why they are different?
+</p>
+
+<p class="fragment (appear)">
+<b>IGP</b> routing policy is based on means of <i>efficiency</i>, while <b>EGP</b> policy is
+ based on <i>economical reasons</i>.
+</p>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline27">
+<h3 id="orgheadline27"><span class="todo TODO">TODO</span> IP multicast</h3>
+</section>
+</section>
+</div>
+</div>
+<script src="http://cdn.jsdelivr.net/reveal.js/3.0.0/lib/js/head.min.js"></script>
+<script src="http://cdn.jsdelivr.net/reveal.js/3.0.0/js/reveal.js"></script>
+
+<script>
+// Full list of configuration options available here:
+// https://github.com/hakimel/reveal.js#configuration
+Reveal.initialize({
+
+controls: true,
+progress: true,
+history: false,
+center: true,
+slideNumber: 'c',
+rollingLinks: false,
+keyboard: true,
+overview: true,
+margin: 0.10,
+minScale: 0.50,
+
+theme: Reveal.getQueryHash().theme, // available themes are in /css/theme
+transition: Reveal.getQueryHash().transition || 'slide', // default/cube/page/concave/zoom/linear/fade/none
+transitionSpeed: 'default',
+multiplex: {
+    secret: '', // null if client
+    id: '', // id, obtained from socket.io server
+    url: '' // Location of socket.io server
+},
+
+// Optional libraries used to extend on reveal.js
+dependencies: [
+ { src: 'http://cdn.jsdelivr.net/reveal.js/3.0.0/lib/js/classList.js', condition: function() { return !document.body.classList; } },
+ { src: 'http://cdn.jsdelivr.net/reveal.js/3.0.0/plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+ { src: 'http://cdn.jsdelivr.net/reveal.js/3.0.0/plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+ { src: 'http://cdn.jsdelivr.net/reveal.js/3.0.0/plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+ { src: 'http://cdn.jsdelivr.net/reveal.js/3.0.0/plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }]
+});
+</script>
+</body>
+</html>
